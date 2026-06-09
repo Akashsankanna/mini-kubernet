@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: mini-kubernet
+  namespace: argocd
+spec:
+  sourceRepos:
+  - 'https://github.com/mini-kubernet/mini-kubernet.git'
+  - 'https://charts.helm.sh/stable'
+  - 'https://prometheus-community.github.io/helm-charts'
+  - 'https://grafana.github.io/helm-charts'
+  destinations:
+  - namespace: 'kubernet-*'
+    server: https://kubernetes.default.svc
+  namespaceResourceBlacklist:
+  - group: '*'
+    kind: 'ResourceQuota'
+  - group: '*'
+    kind: 'NetworkPolicy'
+  namespaceResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  clusterResourceBlacklist:
+  - group: '*'
+    kind: 'ClusterRole'
+  - group: '*'
+    kind: 'ClusterRoleBinding'
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: 'Namespace'
+  - group: '*'
+    kind: 'ClusterRole'
+  - group: '*'
+    kind: 'ClusterRoleBinding'
+  roles:
+  - name: admin
+    policies:
+    - p, proj:mini-kubernet:admin, applications, *, */*, allow
+    groups:
+    - admin-team
+  - name: dev-team
+    policies:
+    - p, proj:mini-kubernet:dev-team, applications, *, */dev, allow
+    - p, proj:mini-kubernet:dev-team, applications, get, */dev, allow
+    groups:
+    - dev-team
+  - name: ops-team
+    policies:
+    - p, proj:mini-kubernet:ops-team, applications, *, */*, allow
+    groups:
+    - ops-team

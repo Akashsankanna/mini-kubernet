@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: kubernet-dev
+
+commonLabels:
+  app: mini-kubernet
+  environment: dev
+
+commonAnnotations:
+  managed-by: kustomize
+
+replicas:
+- name: auth-service
+  count: 1
+- name: api-gateway
+  count: 1
+- name: build-service
+  count: 1
+- name: deploy-service
+  count: 1
+
+resources:
+- ../../base/
+- ../../../k8s/security/dev-namespace.yaml

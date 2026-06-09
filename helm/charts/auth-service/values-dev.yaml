@@ -1,0 +1,34 @@
+# Development environment values
+replicaCount: 1
+
+image:
+  repository: "{{ .Values.registry }}/auth-service"
+  tag: "develop"
+
+resources:
+  limits:
+    cpu: 250m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+
+database:
+  host: postgres-dev.kubernet-dev.svc.cluster.local
+
+redis:
+  host: redis-dev.kubernet-dev.svc.cluster.local
+
+ingress:
+  hosts:
+    - host: auth-dev.mini-kubernet.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: auth-service-dev-tls
+      hosts:
+        - auth-dev.mini-kubernet.com

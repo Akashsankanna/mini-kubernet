@@ -1,0 +1,68 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: kubernet-prod
+
+commonLabels:
+  app: mini-kubernet
+  environment: prod
+
+commonAnnotations:
+  managed-by: kustomize
+
+replicas:
+- name: auth-service
+  count: 5
+- name: api-gateway
+  count: 5
+- name: build-service
+  count: 2
+- name: deploy-service
+  count: 2
+
+resources:
+- ../../base/
+- ../../../k8s/security/prod-namespace.yaml
+- ../../../k8s/monitoring/
+- ../../../k8s/logging/
+- ../../../k8s/vault/
+
+configMapGenerator:
+- name: app-config
+  behavior: merge
+  files:
+  - env.prod
+
+secretGenerator:
+- name: app-secrets
+  behavior: merge
+  envs:
+  - secrets.prod
+
+patchesJson6902:
+- target:
+    version: v1
+    kind: Service
+  patch: |-
+    - op: add
+      path: /spec/type
+      value: LoadBalancer
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+  patch: |-
+    - op: add
+      path: /spec/template/spec/affinity
+      value:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - mini-kubernet
+              topologyKey: kubernetes.io/hostname

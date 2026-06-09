@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway-canary
+  namespace: kubernet-prod
+  labels:
+    app: api-gateway
+    version: v2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+        version: v2
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      containers:
+      - name: api-gateway
+        image: gcr.io/my-project/api-gateway:canary
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: PORT
+          value: "8080"
+        - name: REDIS_URL
+          value: "redis:6379"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

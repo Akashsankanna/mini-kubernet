@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-service
+  namespace: kubernet-prod
+  labels:
+    app: deploy-service
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: deploy-service
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: deploy-service
+        version: v1
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      serviceAccountName: deploy-service
+      containers:
+      - name: deploy-service
+        image: gcr.io/my-project/deploy-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8083
+          name: http
+        env:
+        - name: PORT
+          value: "8083"
+        livenessProbe:
+          httpGet:
+            path: /deploy/health
+            port: 8083
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /deploy/health
+            port: 8083
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: deploy-service
+  namespace: kubernet-prod
+  labels:
+    app: deploy-service
+spec:
+  selector:
+    app: deploy-service
+  ports:
+  - protocol: TCP
+    port: 8083
+    targetPort: 8083
+    name: http
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: deploy-service
+  namespace: kubernet-prod
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: deploy-service
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets"]
+  verbs: ["create", "update", "patch", "delete", "get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["services", "pods"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: deploy-service
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: deploy-service
+subjects:
+- kind: ServiceAccount
+  name: deploy-service
+  namespace: kubernet-prod

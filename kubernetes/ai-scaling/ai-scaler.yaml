@@ -1,0 +1,177 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-scaling-config
+  namespace: kubernet-prod
+data:
+  config.yaml: |
+    # AI-Based Auto Scaling Configuration
+    version: "1.0"
+    
+    # Model configuration for metrics prediction
+    models:
+      - name: cpu-predictor
+        type: lstm
+        lookback_window: 24h
+        prediction_window: 30m
+        threshold: 0.8
+        
+      - name: memory-predictor
+        type: gradient-boosting
+        lookback_window: 24h
+        prediction_window: 30m
+        threshold: 0.75
+        
+      - name: request-rate-predictor
+        type: arima
+        lookback_window: 48h
+        prediction_window: 30m
+        threshold: 0.85
+    
+    # Scaling policies based on predictions
+    scaling_policies:
+      api-gateway:
+        min_replicas: 3
+        max_replicas: 10
+        metrics:
+          - name: cpu
+            target: 70
+            prediction_weight: 0.4
+          - name: memory
+            target: 80
+            prediction_weight: 0.3
+          - name: request_rate
+            target: 1000
+            prediction_weight: 0.3
+        scale_up_cooldown: 60s
+        scale_down_cooldown: 300s
+      
+      auth-service:
+        min_replicas: 2
+        max_replicas: 8
+        metrics:
+          - name: cpu
+            target: 75
+            prediction_weight: 0.5
+          - name: request_rate
+            target: 500
+            prediction_weight: 0.5
+        scale_up_cooldown: 90s
+        scale_down_cooldown: 300s
+      
+      build-service:
+        min_replicas: 1
+        max_replicas: 5
+        metrics:
+          - name: cpu
+            target: 80
+            prediction_weight: 0.6
+          - name: queue_depth
+            target: 10
+            prediction_weight: 0.4
+        scale_up_cooldown: 120s
+        scale_down_cooldown: 600s
+      
+      deploy-service:
+        min_replicas: 2
+        max_replicas: 6
+        metrics:
+          - name: cpu
+            target: 70
+            prediction_weight: 0.5
+          - name: memory
+            target: 75
+            prediction_weight: 0.5
+        scale_up_cooldown: 90s
+        scale_down_cooldown: 300s
+    
+    # Cost optimization
+    cost_optimization:
+      enabled: true
+      prefer_spot_instances: true
+      max_spot_percentage: 70
+      schedule:
+        - cron: "0 18 * * 1-5"  # Weekday evening
+          scale_down_percentage: 30
+        - cron: "0 9 * * 1-5"   # Weekday morning
+          scale_up_percentage: 10
+        - cron: "0 0 * * 6-0"   # Weekend
+          scale_down_percentage: 50
+    
+    # Metrics collection
+    metrics:
+      collection_interval: 30s
+      retention_period: 7d
+      aggregation_methods:
+        - name: avg
+          window: 5m
+        - name: p95
+          window: 5m
+        - name: p99
+          window: 5m
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ai-scaler
+  namespace: kubernet-prod
+spec:
+  schedule: "*/5 * * * *"  # Run every 5 minutes
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: ai-scaler
+          containers:
+          - name: ai-scaler
+            image: gcr.io/my-project/ai-scaler:latest
+            imagePullPolicy: IfNotPresent
+            env:
+            - name: NAMESPACE
+              value: kubernet-prod
+            - name: CONFIG_MAP
+              value: ai-scaling-config
+            - name: PROMETHEUS_URL
+              value: http://prometheus:9090
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "500m"
+          restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ai-scaler
+  namespace: kubernet-prod
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ai-scaler
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments", "deployments/scale"]
+  verbs: ["get", "list", "patch", "update"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list"]
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["pods", "nodes"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ai-scaler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ai-scaler
+subjects:
+- kind: ServiceAccount
+  name: ai-scaler
+  namespace: kubernet-prod

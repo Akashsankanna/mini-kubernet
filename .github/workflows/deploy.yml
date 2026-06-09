@@ -1,0 +1,129 @@
+name: Deploy to Kubernetes
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: 
+      name: ${{ github.event.inputs.environment || 'production' }}
+    
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+        service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+    
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+    
+    - name: Get GKE credentials
+      run: |
+        gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER_NAME }} \
+          --zone ${{ secrets.GKE_ZONE }} \
+          --project ${{ secrets.GCP_PROJECT }}
+    
+    - name: Install Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: 'latest'
+    
+    - name: Create namespace
+      run: kubectl create namespace kubernet-prod --dry-run=client -o yaml | kubectl apply -f -
+    
+    - name: Create secrets
+      run: |
+        kubectl create secret generic db-secret \
+          --from-literal=url=${{ secrets.DATABASE_URL }} \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        kubectl create secret generic jwt-secret \
+          --from-literal=key=${{ secrets.JWT_SECRET }} \
+          --dry-run=client -o yaml | kubectl apply -f -
+    
+    - name: Deploy to Kubernetes
+      run: |
+        kubectl apply -f kubernetes/namespace.yaml
+        kubectl apply -f kubernetes/postgres-statefulset.yaml
+        kubectl apply -f kubernetes/redis-deployment.yaml
+        kubectl apply -f kubernetes/services/
+    
+    - name: Install Istio
+      run: |
+        helm repo add istio https://istio-release.storage.googleapis.com/charts
+        helm repo update
+        helm upgrade --install istio-base istio/base \
+          -n istio-system --create-namespace
+        helm upgrade --install istiod istio/istiod \
+          -n istio-system
+    
+    - name: Deploy Istio configurations
+      run: |
+        kubectl apply -f kubernetes/istio/
+    
+    - name: Deploy HPA
+      run: |
+        kubectl apply -f kubernetes/hpa/
+    
+    - name: Verify deployment
+      run: |
+        kubectl rollout status deployment/api-gateway -n kubernet-prod --timeout=5m
+        kubectl get pods -n kubernet-prod
+        kubectl get services -n kubernet-prod
+
+  canary-deploy:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+        service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+    
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+    
+    - name: Get GKE credentials
+      run: |
+        gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER_NAME }} \
+          --zone ${{ secrets.GKE_ZONE }} \
+          --project ${{ secrets.GCP_PROJECT }}
+    
+    - name: Deploy canary version
+      run: |
+        kubectl apply -f kubernetes/canary/api-gateway-canary.yaml
+        kubectl apply -f kubernetes/canary/virtual-service-canary.yaml
+    
+    - name: Monitor canary metrics
+      run: |
+        kubectl logs -f deployment/api-gateway-canary \
+          -n kubernet-prod --tail=100

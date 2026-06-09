@@ -1,0 +1,54 @@
+# Production environment values
+replicaCount: 5
+
+image:
+  repository: "{{ .Values.registry }}/auth-service"
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 5
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 60
+  targetMemoryUtilizationPercentage: 70
+
+database:
+  host: postgres-prod.kubernet-prod.svc.cluster.local
+  max_connections: 50
+
+redis:
+  host: redis-prod.kubernet-prod.svc.cluster.local
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "1000"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+  hosts:
+    - host: auth.mini-kubernet.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: auth-service-prod-tls
+      hosts:
+        - auth.mini-kubernet.com
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 3
+
+networkPolicy:
+  enabled: true

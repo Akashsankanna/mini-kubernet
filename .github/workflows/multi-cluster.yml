@@ -1,0 +1,100 @@
+name: Multi-Cluster Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      clusters:
+        description: 'Clusters to deploy to'
+        required: true
+        type: choice
+        options:
+          - all
+          - us-east-1
+          - us-west-2
+          - eu-west-1
+
+jobs:
+  deploy-multi-cluster:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      id-token: write
+
+    strategy:
+      matrix:
+        cluster:
+          - name: us-east-1
+            zone: us-east1-b
+          - name: us-west-2
+            zone: us-west1-a
+          - name: eu-west-1
+            zone: europe-west1-b
+      max-parallel: 1
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+        service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+    
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+    
+    - name: Get GKE cluster credentials
+      run: |
+        gcloud container clusters get-credentials mini-kubernet-${{ matrix.cluster.name }} \
+          --zone ${{ matrix.cluster.zone }} \
+          --project ${{ secrets.GCP_PROJECT }}
+    
+    - name: Deploy to cluster
+      run: |
+        echo "Deploying to ${{ matrix.cluster.name }}"
+        kubectl apply -f kubernetes/namespace.yaml
+        kubectl apply -f kubernetes/postgres-statefulset.yaml
+        kubectl apply -f kubernetes/redis-deployment.yaml
+        kubectl apply -f kubernetes/services/
+        kubectl apply -f kubernetes/istio/
+        kubectl apply -f kubernetes/hpa/
+    
+    - name: Verify deployment
+      run: |
+        kubectl wait --for=condition=available --timeout=5m \
+          deployment/api-gateway -n kubernet-prod
+        kubectl get all -n kubernet-prod
+    
+    - name: Health check
+      run: |
+        GATEWAY_IP=$(kubectl get svc api-gateway -n kubernet-prod \
+          -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+        
+        echo "API Gateway IP: $GATEWAY_IP"
+        
+        # Wait for load balancer to be ready
+        for i in {1..30}; do
+          if curl -f http://$GATEWAY_IP:8080/health; then
+            echo "Health check passed!"
+            exit 0
+          fi
+          echo "Waiting for health check... ($i/30)"
+          sleep 10
+        done
+        
+        echo "Health check failed!"
+        exit 1
+
+  sync-configs:
+    needs: deploy-multi-cluster
+    runs-on: ubuntu-latest
+    if: success()
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Sync cluster configurations
+      run: |
+        echo "Syncing cluster configurations across all regions"
+        # Implement cross-cluster config sync here

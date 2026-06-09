@@ -1,0 +1,86 @@
+groups:
+- name: kubernetes.rules
+  interval: 30s
+  rules:
+  # CPU alerts
+  - alert: HighCPUUsage
+    expr: (100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 80
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High CPU usage detected"
+      description: "CPU usage is {{ $value }}% on {{ $labels.instance }}"
+
+  # Memory alerts
+  - alert: HighMemoryUsage
+    expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) < 0.2
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High memory usage detected"
+      description: "Available memory is {{ $value }}% on {{ $labels.instance }}"
+
+  # Pod crashes
+  - alert: PodCrashLooping
+    expr: rate(kube_pod_container_status_restarts_total[15m]) > 0.1
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Pod crash looping"
+      description: "Pod {{ $labels.pod }} is crash looping"
+
+  # Deployment replicas
+  - alert: DeploymentReplicasMismatch
+    expr: kube_deployment_spec_replicas != kube_deployment_status_replicas_available
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Deployment replicas mismatch"
+      description: "Deployment {{ $labels.deployment }} has {{ $value }} unavailable replicas"
+
+  # HTTP errors
+  - alert: HighHTTPErrorRate
+    expr: (sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))) > 0.05
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "High HTTP error rate"
+      description: "HTTP error rate is {{ $value }}%"
+
+- name: application.rules
+  interval: 30s
+  rules:
+  # API Gateway response time
+  - alert: HighAPILatency
+    expr: histogram_quantile(0.95, http_request_duration_seconds_bucket{service="api-gateway"}) > 1
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High API latency"
+      description: "API p95 latency is {{ $value }}s"
+
+  # Database connection issues
+  - alert: DatabaseConnectionErrors
+    expr: increase(db_connection_errors_total[5m]) > 10
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Database connection errors"
+      description: "{{ $value }} database connection errors in the last 5 minutes"
+
+  # Cache hit rate
+  - alert: LowCacheHitRate
+    expr: redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total) < 0.8
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Low cache hit rate"
+      description: "Cache hit rate is {{ $value }}"

@@ -1,0 +1,74 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+    
+    - name: Download Go modules
+      run: go mod download
+    
+    - name: Run tests for Auth Service
+      run: |
+        cd backend/auth-service
+        go test -v -coverprofile=coverage.out ./...
+    
+    - name: Run tests for Build Service
+      run: |
+        cd backend/build-service
+        go test -v -coverprofile=coverage.out ./...
+    
+    - name: Run tests for Deploy Service
+      run: |
+        cd backend/deploy-service
+        go test -v -coverprofile=coverage.out ./...
+    
+    - name: Run tests for API Gateway
+      run: |
+        cd backend/api-gateway
+        go test -v -coverprofile=coverage.out ./...
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./backend/*/coverage.out
+        flags: unittests
+        name: codecov-umbrella

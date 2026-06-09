@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: build-service
+  namespace: kubernet-prod
+  labels:
+    app: build-service
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: build-service
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: build-service
+        version: v1
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      containers:
+      - name: build-service
+        image: gcr.io/my-project/build-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8082
+          name: http
+        env:
+        - name: PORT
+          value: "8082"
+        livenessProbe:
+          httpGet:
+            path: /build/health
+            port: 8082
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /build/health
+            port: 8082
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: build-service
+  namespace: kubernet-prod
+  labels:
+    app: build-service
+spec:
+  selector:
+    app: build-service
+  ports:
+  - protocol: TCP
+    port: 8082
+    targetPort: 8082
+    name: http
+  type: ClusterIP

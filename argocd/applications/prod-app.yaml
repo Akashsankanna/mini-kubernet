@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mini-kubernet-prod
+  namespace: argocd
+spec:
+  project: mini-kubernet
+  source:
+    repoURL: 'https://github.com/mini-kubernet/mini-kubernet.git'
+    targetRevision: main
+    path: argocd/applications/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kubernet-prod
+  syncPolicy:
+    syncOptions:
+    - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+    manual: true  # Manual sync for production
+  revisionHistoryLimit: 10

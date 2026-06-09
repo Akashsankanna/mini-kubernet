@@ -1,0 +1,83 @@
+name: Build & Push Images
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      id-token: write
+
+    strategy:
+      matrix:
+        service: [auth-service, build-service, deploy-service, api-gateway]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+        service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+    
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+    
+    - name: Configure Docker for GCR
+      run: gcloud auth configure-docker
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: ./backend/${{ matrix.service }}
+        push: true
+        tags: |
+          gcr.io/${{ secrets.GCP_PROJECT }}/mini-kubernet/${{ matrix.service }}:latest
+          gcr.io/${{ secrets.GCP_PROJECT }}/mini-kubernet/${{ matrix.service }}:${{ github.sha }}
+        cache-from: type=registry,ref=gcr.io/${{ secrets.GCP_PROJECT }}/mini-kubernet/${{ matrix.service }}:buildcache
+        cache-to: type=registry,ref=gcr.io/${{ secrets.GCP_PROJECT }}/mini-kubernet/${{ matrix.service }}:buildcache,mode=max
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+        service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+    
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+    
+    - name: Configure Docker for GCR
+      run: gcloud auth configure-docker
+    
+    - name: Build and push Frontend image
+      uses: docker/build-push-action@v4
+      with:
+        context: ./frontend
+        push: true
+        tags: |
+          gcr.io/${{ secrets.GCP_PROJECT }}/mini-kubernet/frontend:latest
+          gcr.io/${{ secrets.GCP_PROJECT }}/mini-kubernet/frontend:${{ github.sha }}
+        cache-from: type=registry,ref=gcr.io/${{ secrets.GCP_PROJECT }}/mini-kubernet/frontend:buildcache
+        cache-to: type=registry,ref=gcr.io/${{ secrets.GCP_PROJECT }}/mini-kubernet/frontend:buildcache,mode=max

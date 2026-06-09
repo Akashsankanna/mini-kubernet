@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "auth-service.fullname" . }}-config
+  labels:
+    {{- include "auth-service.labels" . | nindent 4 }}
+data:
+  database-host: {{ .Values.database.host | quote }}
+  database-port: {{ .Values.database.port | quote }}
+  database-name: {{ .Values.database.name | quote }}
+  database-ssl-mode: {{ .Values.database.ssl_mode | quote }}
+  redis-host: {{ .Values.redis.host | quote }}
+  redis-port: {{ .Values.redis.port | quote }}
+  jwt-expiry: {{ .Values.jwt.expiry | quote }}
+  jwt-refresh-expiry: {{ .Values.jwt.refresh_expiry | quote }}
+  otp-length: {{ .Values.otp.length | quote }}
+  otp-expiry: {{ .Values.otp.expiry | quote }}
+  otp-max-attempts: {{ .Values.otp.max_attempts | quote }}
+  otp-rate-limit: {{ .Values.otp.rate_limit | quote }}

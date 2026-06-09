@@ -1,0 +1,21 @@
+apiVersion: v2
+name: auth-service
+description: A Helm chart for Mini Kubernet Authentication Service
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+
+keywords:
+  - authentication
+  - jwt
+  - otp
+  - microservices
+
+home: https://github.com/mini-kubernet/mini-kubernet
+sources:
+  - https://github.com/mini-kubernet/mini-kubernet
+maintainers:
+  - name: DevOps Team
+    email: devops@mini-kubernet.com
+
+dependencies: []

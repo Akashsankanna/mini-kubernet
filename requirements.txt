@@ -1,0 +1,15 @@
+Go 1.21+
+Node.js 18+
+Docker 24+
+Kubernetes 1.28+
+Terraform 1.5+
+Helm 3.12+
+Istio 1.17+
+Prometheus 2.45+
+Grafana 10.0+
+PostgreSQL 15+
+Redis 7.0+
+NATS 2.9+
+GitHub Actions (native)
+AWS CLI v2
+kubectl 1.28+
