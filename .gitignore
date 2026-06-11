@@ -103,3 +103,6 @@ temp/
 # OS
 .DS_Store
 Thumbs.db
+*.exe
+*.zip
+backend/project-service/repositories/

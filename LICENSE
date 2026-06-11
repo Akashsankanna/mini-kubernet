@@ -1,6 +1,10 @@
 MIT License
 
+<<<<<<< HEAD
 Copyright (c) 2024 Mini Kubernetes Project Contributors
+=======
+Copyright (c) 2026 Akashsankanna
+>>>>>>> c9e41752e2f3ddae54ed269b1196e95747e8884e
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

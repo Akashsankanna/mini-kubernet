@@ -5,9 +5,9 @@ go 1.25.8
 require (
 	github.com/gin-contrib/cors v1.7.7
 	github.com/gin-gonic/gin v1.12.0
-	github.com/golang-jwt/jwt/v5 v5.0.0
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/joho/godotenv v1.5.1
-	github.com/lib/pq v1.12.3
+	github.com/lib/pq v1.10.9
 	golang.org/x/crypto v0.51.0
 	google.golang.org/api v0.283.0
 )

@@ -19,6 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"k8s.io/client-go/kubernetes"
 
@@ -76,8 +77,14 @@ func init() {
 
 		log.Println("Using local kubeconfig")
 
+		home, err := os.UserHomeDir()
+		if err != nil {
+			log.Println("Failed to get user home directory:", err)
+			return
+		}
+
 		kubeconfig := filepath.Join(
-			os.Getenv("HOME"),
+			home,
 			".kube",
 			"config",
 		)
@@ -370,6 +377,7 @@ func deployToKubernetes(
 		},
 	}
 
+	// Create Deployment
 	_, err := k8sClient.
 		AppsV1().
 		Deployments(req.Namespace).
@@ -387,6 +395,46 @@ func deployToKubernetes(
 
 		return
 	}
+
+	log.Printf("✅ Deployment %s created", req.ServiceName)
+
+	// Create Service
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: req.ServiceName,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: labels,
+			Type:     corev1.ServiceTypeNodePort,
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "http",
+					Port:       80,
+					TargetPort: intstr.FromInt(80),
+				},
+			},
+		},
+	}
+
+	_, err = k8sClient.
+		CoreV1().
+		Services(req.Namespace).
+		Create(
+			ctx,
+			service,
+			metav1.CreateOptions{},
+		)
+
+	if err != nil {
+
+		log.Println("Service creation failed:", err)
+
+		status.Status = "failed"
+
+		return
+	}
+
+	log.Printf("✅ Service %s created", req.ServiceName)
 
 	time.Sleep(2 * time.Second)
 

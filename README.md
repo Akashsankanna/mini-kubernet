@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Advanced Kubernetes Deployment Platform
 
 A production-grade, highly scalable Kubernetes platform featuring multi-cluster deployment, canary deployments, Istio service mesh, and AI-based auto-scaling.
@@ -385,3 +386,7 @@ For issues and questions:
 - GitHub Issues: https://github.com/advanced-k8s/mini-kubernet/issues
 - Documentation: See `/docs` folder
 - Email: support@example.com
+=======
+# mini-kubernet
+Cloud-native microservices platform built with Go, React, Kubernetes, Docker, Terraform, ArgoCD, and GitHub Actions. Features JWT authentication, PostgreSQL, Redis, NATS messaging, CI/CD automation, GitOps deployment, monitoring with Prometheus/Grafana, Istio service mesh, and scalable cloud-native architecture.
+>>>>>>> c9e41752e2f3ddae54ed269b1196e95747e8884e

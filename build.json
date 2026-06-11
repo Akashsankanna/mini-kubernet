@@ -1,0 +1,5 @@
+{
+  "service_name": "test-app",
+  "git_repo": "https://github.com/octocat/Hello-World.git",
+  "registry": "docker.io/testuser"
+}

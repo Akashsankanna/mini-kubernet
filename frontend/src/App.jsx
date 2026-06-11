@@ -1,108 +1,82 @@
-import React, { useEffect } from 'react';
+import React, { useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
-} from 'react-router-dom';
+} from "react-router-dom";
 
-import { Toaster } from 'react-hot-toast';
+import { Toaster } from "react-hot-toast";
 
-import useAuthStore from './store/authStore';
+import useAuthStore from "./store/authStore";
 
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import DashboardPage from './pages/DashboardPage';
-import ProfilePage from './pages/ProfilePage';
-import AdminPage from './pages/AdminPage';
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import DashboardPage from "./pages/DashboardPage";
+import ProfilePage from "./pages/ProfilePage";
+import AdminPage from "./pages/AdminPage";
 
-import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './components/Layout';
+import ProtectedRoute from "./components/ProtectedRoute";
+import Layout from "./components/Layout";
+import DeploymentPage from "./pages/DeploymentPage";
+import ProjectsPage from "./pages/ProjectsPage";
 
 function App() {
-
   // Zustand store values
-  const user = useAuthStore(
-    (state) => state.user
-  );
+  const user = useAuthStore((state) => state.user);
 
-  const token = useAuthStore(
-    (state) => state.token
-  );
+  const token = useAuthStore((state) => state.token);
 
-  const isAuthenticated = useAuthStore(
-    (state) => state.isAuthenticated
-  );
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   // Verify token on app load
   useEffect(() => {
     if (token) {
-      console.log('User authenticated');
+      console.log("User authenticated");
     }
   }, [token]);
 
   return (
     <Router>
-
       <Toaster position="top-right" />
 
       <Routes>
-
         {/* Public Routes */}
         <Route
           path="/login"
           element={
-            isAuthenticated()
-              ? <Navigate to="/dashboard" replace />
-              : <LoginPage />
+            isAuthenticated() ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <LoginPage />
+            )
           }
         />
 
-        <Route
-          path="/register"
-          element={<RegisterPage />}
-        />
+        <Route path="/register" element={<RegisterPage />} />
 
         {/* Protected Routes */}
+        {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
-
           <Route element={<Layout />}>
+            <Route path="/" element={<DashboardPage />} />
 
-            <Route
-              path="/"
-              element={<DashboardPage />}
-            />
+            <Route path="/dashboard" element={<DashboardPage />} />
 
-            <Route
-              path="/dashboard"
-              element={<DashboardPage />}
-            />
+            <Route path="/deploy" element={<DeploymentPage />} />
 
-            <Route
-              path="/profile"
-              element={<ProfilePage />}
-            />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/projects" element={<ProjectsPage />} />
 
             {/* Admin Route */}
-            {user?.role === 'admin' && (
-              <Route
-                path="/admin"
-                element={<AdminPage />}
-              />
+            {user?.role === "admin" && (
+              <Route path="/admin" element={<AdminPage />} />
             )}
-
           </Route>
-
         </Route>
-
         {/* Redirect Unknown Routes */}
-        <Route
-          path="*"
-          element={<Navigate to="/" replace />}
-        />
-
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-
     </Router>
   );
 }

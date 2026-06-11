@@ -15,8 +15,6 @@ import (
 	"google.golang.org/api/idtoken"
 )
 
-const requestTimeout = 5 * time.Second
-
 // ========================================
 // REGISTER HANDLER
 // ========================================
@@ -436,36 +434,39 @@ func googleLoginHandler(c *gin.Context) {
 
 		username := strings.Split(email, "@")[0]
 
+		googleIDPtr := &googleID
+		picturePtr := &picture
+
 		user = &User{
 			Username:  username,
 			Email:     email,
-			GoogleID:  googleID,
-			Avatar:    picture,
+			GoogleID:  googleIDPtr,
+			Avatar:    picturePtr,
 			FirstName: name,
 			Status:    "active",
 			Role:      "user",
 		}
 
 		err = db.QueryRowContext(ctx, `
-			INSERT INTO users (
-				username,
-				email,
-				google_id,
-				avatar,
-				first_name,
-				role,
-				status,
-				email_verified,
-				created_at,
-				updated_at
-			)
-			VALUES (
-				$1,$2,$3,$4,$5,$6,$7,true,
-				CURRENT_TIMESTAMP,
-				CURRENT_TIMESTAMP
-			)
-			RETURNING id
-		`,
+		INSERT INTO users (
+			username,
+			email,
+			google_id,
+			avatar,
+			first_name,
+			role,
+			status,
+			email_verified,
+			created_at,
+			updated_at
+		)
+		VALUES (
+			$1,$2,$3,$4,$5,$6,$7,true,
+			CURRENT_TIMESTAMP,
+			CURRENT_TIMESTAMP
+		)
+		RETURNING id
+	`,
 			user.Username,
 			user.Email,
 			user.GoogleID,
